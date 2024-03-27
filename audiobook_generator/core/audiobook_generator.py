@@ -1,12 +1,17 @@
 import logging
 import os
 
+from flask import Flask, request, render_template, redirect, url_for
+from flask_socketio import SocketIO 
 from audiobook_generator.book_parsers.base_book_parser import get_book_parser
 from audiobook_generator.config.general_config import GeneralConfig
 from audiobook_generator.core.audio_tags import AudioTags
 from audiobook_generator.tts_providers.base_tts_provider import get_tts_provider
 
 logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
+socketio = SocketIO(app)  # Initialize SocketIO with the Flask app
 
 
 def confirm_conversion():
@@ -15,7 +20,7 @@ def confirm_conversion():
     if answer.lower() != "y":
         print("Aborted.")
         exit(0)
-
+socketio.emit('show_prompt', {'message': 'Do you want to continue? (y/n)'})
 
 def get_total_chars(chapters):
     total_characters = 0

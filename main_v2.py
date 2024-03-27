@@ -3,7 +3,8 @@ import logging
 from flask import Flask, request, render_template, redirect, url_for
 from werkzeug.utils import secure_filename
 import argparse
-from flask_socketio import SocketIO  # Import SocketIO
+import threading  # Import threading for background tasks
+from flask_socketio import SocketIO, emit  # Import emit from Flask-SocketIO
 from audiobook_generator.config.general_config import GeneralConfig
 from audiobook_generator.core.audiobook_generator import AudiobookGenerator
 from audiobook_generator.tts_providers.base_tts_provider import get_supported_tts_providers
@@ -16,17 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-socketio = SocketIO(app)  # Initialize SocketIO with the Flask app
-
-@socketio.on('user_response')
-def handle_user_response(data):
-    if data['continue']:
-        # User responded with 'Yes', proceed with conversion
-        print("User agreed to continue.")
-        # Trigger the next steps in the conversion process
-    else:
-        # User responded with 'No', abort or handle accordingly
-        print("User declined to continue.")
+socketio = SocketIO(app)
 
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'upload')
 app.config['OUTPUT_FOLDER'] = os.path.join(os.path.dirname(__file__), 'output')
@@ -37,6 +28,19 @@ def allowed_file(filename):
 @app.route('/', methods=['GET'])
 def index():
     return render_template('index.html', tts_options=get_supported_tts_providers())
+
+def convert_book(file_path, args_dict):
+    # This function will run in a separate thread
+    try:
+        socketio.emit('log_message', {'data': 'Starting conversion...'})
+        
+        # Your conversion logic here
+        # Example:
+        # AudiobookGenerator(config).run()
+        
+        socketio.emit('log_message', {'data': 'Conversion completed!'})
+    except Exception as e:
+        socketio.emit('log_message', {'data': f'Error: {str(e)}'})
 
 @app.route('/convert', methods=['POST'])
 def convert():
@@ -73,18 +77,12 @@ def convert():
             "voice_pitch": request.form.get('voice_pitch', ''),
             "proxy": request.form.get('proxy', ''),
             "break_duration": request.form.get('break_duration', '1250'),
+            # other parameters as necessary
         }
 
-        args_namespace = argparse.Namespace(**args_dict)
-        config = GeneralConfig(args_namespace)
-
-        # Instead of directly running the generator, emit WebSocket events
-        socketio.emit('log_message', {'data': 'Starting conversion...'})
-        # Run the AudiobookGenerator in a background thread if needed
-
-        AudiobookGenerator(config).run()
-
-        socketio.emit('log_message', {'data': 'Conversion completed!'})
+        # Start the conversion in a separate thread
+        thread = threading.Thread(target=convert_book, args=(file_path, args_dict,))
+        thread.start()
 
         return redirect(url_for('index'))
 

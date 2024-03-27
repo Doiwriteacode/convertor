@@ -13,6 +13,13 @@
                 logElement.innerHTML += msg.data + '<br>';
             });
 
+            socket.on('show_prompt', function(data) {
+                // Assuming you want to handle the prompt with buttons rather than a confirm dialog
+                // Show the prompt and buttons here, or simply use confirm as before
+                var userResponse = confirm(data.message);
+                socket.emit('user_response', {'continue': userResponse});
+            });
+
             function startConversion() {
                 var fileInput = document.getElementById('file');
                 if (fileInput.files.length > 0) {
@@ -32,7 +39,6 @@
                         return response.text();
                     }).then(function(text) {
                         console.log('Conversion started:', text);
-                        // Handle successful conversion start here
                     }).catch(function(error) {
                         console.error('Error during conversion:', error);
                     });
@@ -40,6 +46,14 @@
             }
 
             document.getElementById('convert-button').addEventListener('click', startConversion);
+
+            // Add event listeners for the Yes and No buttons
+            document.getElementById('yes-button').addEventListener('click', () => {
+                socket.emit('user_response', {continue: true});
+            });
+            document.getElementById('no-button').addEventListener('click', () => {
+                socket.emit('user_response', {continue: false});
+            });
         });
     </script>
 </head>
@@ -72,6 +86,10 @@
     <div id="log" style="margin-top: 20px; border: 1px solid #ccc; min-height: 100px; padding: 10px;">
         <strong>Logs:</strong>
     </div>
+
+    <!-- Yes and No buttons for user interaction -->
+    <button id="yes-button">Yes</button>
+    <button id="no-button">No</button>
     
 </body>
 </html>
