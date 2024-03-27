@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Audiobook Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', () => {
+            var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+
+            socket.on('log_message', function(msg) {
+                var logElement = document.getElementById('log');
+                logElement.innerHTML += msg.data + '<br>';
+            });
+
+            function startConversion() {
+                var fileInput = document.getElementById('file');
+                if (fileInput.files.length > 0) {
+                    var file = fileInput.files[0];
+                    var formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('tts', document.getElementById('tts').value);
+                    formData.append('voice_name', document.getElementById('voice_name').value);
+
+                    fetch('/convert', {
+                        method: 'POST',
+                        body: formData
+                    }).then(function(response) {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.text();
+                    }).then(function(text) {
+                        console.log('Conversion started:', text);
+                        // Handle successful conversion start here
+                    }).catch(function(error) {
+                        console.error('Error during conversion:', error);
+                    });
+                }
+            }
+
+            document.getElementById('convert-button').addEventListener('click', startConversion);
+        });
+    </script>
+</head>
+<body>
+    <h1>Audiobook Converter</h1>
+    <form id="conversion-form" enctype="multipart/form-data">
+        <label for="file">Choose EPUB file:</label>
+        <input type="file" id="file" name="file" accept=".epub"><br><br>
+    
+        <label for="tts">TTS Provider:</label>
+        <select id="tts" name="tts">
+            {% for tts_option in tts_options %}
+                <option value="{{ tts_option }}">{{ tts_option }}</option>
+            {% endfor %}
+        </select><br><br>
+    
+        <label for="voice_name">Voice Name:</label>
+        <select id="voice_name" name="voice_name">
+            <option value="alloy">Alloy</option>
+            <option value="echo">Echo</option>
+            <option value="fable">Fable</option>
+            <option value="onyx">Onyx</option>
+            <option value="nova">Nova</option>
+            <option value="shimmer">Shimmer</option>
+        </select><br><br>
+    
+        <button type="button" id="convert-button">Convert</button>
+    </form>
+
+    <div id="log" style="margin-top: 20px; border: 1px solid #ccc; min-height: 100px; padding: 10px;">
+        <strong>Logs:</strong>
+    </div>
+    
+</body>
+</html>
